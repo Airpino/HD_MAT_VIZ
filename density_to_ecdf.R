@@ -47,7 +47,12 @@ plo<-plots_strips_distr_2(B,v=sels,poi = 50,
                           pp = 50,
                           n = 32,#kernel density parameter
                           order_of_rows = order_of_rows,
-                          order_of_cols = order_of_cols)
+                          order_of_cols = order_of_cols)#questa OK
+plo_n<-plots_strips_distr_3(B,v=sels,poi = 50,
+                          pp = 50,
+                          n = 32,#kernel density parameter
+                          order_of_rows = order_of_rows,
+                          order_of_cols = order_of_cols)#questa non funziona con plotly
 
 ## generate the dendrogram of rows
 nels<-nrow(ddata$labels)
@@ -95,14 +100,13 @@ ggplot(df2 ,
 
 col_strip <- brewer.pal(9, "Reds")
 ggplot(df2 ,
-              aes(x = x, y = 1, fill = y))+
-  geom_raster(show.legend = T)+#show.legend = F)+
-  scale_fill_gradient(low="white",high="red")+
+              aes(x = x, y = 1, fill = NX))+
+  geom_raster(show.legend = T,aes(alpha=y))+#show.legend = F)+
+  scale_fill_gradient(low="blue",high="red")+
   facet_grid(rows = vars(ID_name),
              cols =vars(ID_VAR),
              scales = "free_x"
-  )
-+
+  )+
   theme_few() +
   theme(plot.margin=margin(r=2.5,unit = "cm"),
         panel.spacing.y=unit(0, "lines"),
@@ -117,3 +121,16 @@ ggplot(df2 ,
         panel.border = element_blank(),
         legend.position='none')
 }
+
+
+
+gridExtra::grid.arrange(p,
+                        plo_n,#+theme(strip.text.x = element_blank()),
+                        ncol=2, widths = c(1,3))
+
+
+grid.newpage()
+print(p, 
+      vp = viewport(x = 0.90, y = 0.43, width = 0.2, height = 0.92))
+print(plo_n, 
+      vp = viewport(x = 0.4, y = 0.5, width = 0.8, height = 1.0))

@@ -32,7 +32,7 @@ MATH2tibble<-function(data){
 }
 
 
-one_density<-function(A,v=1,poi=1000,pp=200, n=1024,NORM=TRUE){
+one_density<-function(A,v=1,poi=1000,pp=200, n=1024,NORM=TRUE,NX=TRUE){
   ID_names<-unlist(A[,ncol(A)])
   A<-A %>% select(all_of(v))
   tmp<-unnest(A,cols = 1)
@@ -57,11 +57,13 @@ one_density<-function(A,v=1,poi=1000,pp=200, n=1024,NORM=TRUE){
     #                 y=c(tmp1$y,rep(NA,length(vals))))
     # 
   }
-  #browser()
-  if(NORM) my_y<-sqrt(my_y/max(my_y))
+  
+  if(NORM) my_y<-(my_y/max(my_y))#my_y<-sqrt(my_y/max(my_y))
+  if(NX) NX<-((my_x-min(my_x))/diff(range(my_x)))
   df0<-data.frame(x=my_x,y=my_y,
                   ID=factor(my_id,levels = as.character(c(1:nr))),
-                  ID_VAR=var_name,ID_name=name_ID)
+                  ID_VAR=var_name,ID_name=name_ID,
+                  NX=NX)
   return(df0)
 }
 one_density_freq<-function(A,v=1,poi=1000,pp=200, n=1024){
@@ -125,17 +127,13 @@ plots_strips_distr_2<-function(B,v=c(1,2),n=64,poi=500,pp=200,NORM=TRUE,
   require(RColorBrewer)
   
   col_strip <- brewer.pal(9, "Reds")
-  df2<-mul_density(B,v = v,n=n,poi=poi,pp = pp,NORM=NORM)
-  if(!is.na(order_of_rows[1])){
-    new_levels<-levels(df2$ID_name)[order_of_rows]
-    df2$ID_name<-factor(df2$ID_name,levels=new_levels)
-  }
-  if(!is.na(order_of_cols[1])){
-    new_levels<-levels(df2$ID_VAR)[order_of_cols]
-    df2$ID_VAR<-factor(df2$ID_VAR,levels=new_levels)
-  }
+  df2<-prep_for_plot(B,v,n,poi,pp,NORM,
+                     order_of_rows,order_of_cols)
+  
   
   #browser()
+  
+  
     plots<-ggplot(df2 ,
                        aes(x = x, y = 1, fill = y))+
       geom_tile(show.legend = T)+#show.legend = F)+
@@ -149,7 +147,7 @@ plots_strips_distr_2<-function(B,v=c(1,2),n=64,poi=500,pp=200,NORM=TRUE,
         panel.spacing.y=unit(0, "lines"),
         #strip.text =element_text(margin = margin(r=20)),
         strip.text.y = element_text(size = 7, angle = 0, hjust = 0),
-        strip.text.x = element_text(size = 7, angle = 20),
+        strip.text.x = element_text(size = 7, angle = 0),
         axis.text.y = element_blank(),
         axis.text.x = element_text(size = 7, angle = 90),
         axis.title.x = element_blank(),
@@ -161,12 +159,8 @@ plots_strips_distr_2<-function(B,v=c(1,2),n=64,poi=500,pp=200,NORM=TRUE,
   return(plots)
 }
 
-plots_strips_distr_3<-function(B,v=c(1,2),n=64,poi=500,pp=200,NORM=TRUE,
-                               order_of_rows=NA,order_of_cols=NA){
-  
-  require(RColorBrewer)
-  
-  col_strip <- brewer.pal(9, "Reds")
+prep_for_plot<-function(B,v=c(1,2),n=64,poi=500,pp=200,NORM=TRUE,
+                        order_of_rows=NA,order_of_cols=NA){
   df2<-mul_density(B,v = v,n=n,poi=poi,pp = pp,NORM=NORM)
   if(!is.na(order_of_rows[1])){
     new_levels<-levels(df2$ID_name)[order_of_rows]
@@ -176,14 +170,26 @@ plots_strips_distr_3<-function(B,v=c(1,2),n=64,poi=500,pp=200,NORM=TRUE,
     new_levels<-levels(df2$ID_VAR)[order_of_cols]
     df2$ID_VAR<-factor(df2$ID_VAR,levels=new_levels)
   }
+  return(df2)
+}
+
+
+plots_strips_distr_3<-function(B,v=c(1,2),n=64,poi=500,pp=200,NORM=TRUE,
+                               order_of_rows=NA,order_of_cols=NA){
+  
+  require(RColorBrewer)
+  
+  col_strip <- brewer.pal(9, "Reds")
+  df2<-prep_for_plot(B,v,n,poi,pp,NORM,
+                     order_of_rows,order_of_cols)
+
   
   #browser()
   scale_fill_gradient(low = "blue", high = "red", na.value = NA)
   plots<-ggplot(df2 ,
-                aes(x = x, y = 1, fill = x, alpha=y))+
-    geom_tile(show.legend = F)+#show.legend = F)+
-    scale_fill_gradient(low = "blue", high = "red", na.value = NA)+
-    #scale_fill_gradientn(colors = (col_strip))+
+                aes(x = x, y = 1, fill = NX))+
+    geom_raster(show.legend = T,aes(alpha=y))+#show.legend = F)+
+    scale_fill_gradient(low="blue",high="red")+
     facet_grid(rows = vars(ID_name),
                cols =vars(ID_VAR),
                scales = "free_x"
@@ -193,7 +199,7 @@ plots_strips_distr_3<-function(B,v=c(1,2),n=64,poi=500,pp=200,NORM=TRUE,
           panel.spacing.y=unit(0, "lines"),
           #strip.text =element_text(margin = margin(r=20)),
           strip.text.y = element_text(size = 7, angle = 0, hjust = 0),
-          strip.text.x = element_text(size = 7, angle = 20),
+          strip.text.x = element_text(size = 7, angle = 0),
           axis.text.y = element_blank(),
           axis.text.x = element_text(size = 7, angle = 90),
           axis.title.x = element_blank(),
