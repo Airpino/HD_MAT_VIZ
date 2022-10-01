@@ -1,13 +1,13 @@
 #### density to ECDF ----
 
-dd<-BLOOD@M[1,1][[1]]
-quants<-HistDAWass:::compQ_vect(dd,vp=c(0:100)/100)
-den<-density(quants,from = min(dd@x),to=max(dd@x))
-
-area<-sum((den$y[1:(length(den$y)-1)]+den$y[2:length(den$y)])/2*diff(den$x))
-cfreq<-cumsum(c(0,(den$y[1:(length(den$y)-1)]+den$y[2:length(den$y)])/2*diff(den$x)))
-cfreq<-cfreq/max(cfreq)
-plot(cfreq)
+# dd<-BLOOD@M[1,1][[1]]
+# quants<-HistDAWass:::compQ_vect(dd,vp=c(0:100)/100)
+# den<-density(quants,from = min(dd@x),to=max(dd@x))
+# 
+# area<-sum((den$y[1:(length(den$y)-1)]+den$y[2:length(den$y)])/2*diff(den$x))
+# cfreq<-cumsum(c(0,(den$y[1:(length(den$y)-1)]+den$y[2:length(den$y)])/2*diff(den$x)))
+# cfreq<-cfreq/max(cfreq)
+# plot(cfreq)
 
 ######## Complete application-------
 library(plotly)
