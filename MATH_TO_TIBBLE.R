@@ -225,9 +225,6 @@ plots_strips_distr_2<-function(B,v=c(1,2),n=64,poi=500,pp=200,NORM=TRUE,
   return(plots)
 }
 
-
-
-
 plots_strips_distr_3<-function(B,v=c(1,2),n=64,poi=500,pp=200,NORM=TRUE,
                                order_of_rows=NA,order_of_cols=NA){
   
@@ -365,7 +362,20 @@ create_new_df_to_plot_M<-function(df2){
   return(DDF)
 }
 
-
+# tutte le variabili
+# qui, invece calcolo i rettangoli da colorare (funziona con le frequenze)
+create_new_df_to_plot_M_freq<-function(df2){
+  
+  DDF<-create_new_df_to_plot(df2,col=1)
+  c=1
+  for(j in levels(df2$ID_VAR)[2:length(levels(df2$ID_VAR))]){
+    c=c+1
+    DDFtmp<-create_new_df_to_plot(df2,col=c)
+    DDF<-rbind(DDF,DDFtmp)
+  }
+  DDF$VAR_name<-factor(DDF$VAR_name,levels=levels(df2$ID_VAR))
+  return(DDF)
+}
 plots_strips_distr<-function(B,v=c(1,2),n=64,poi=500,pp=200,NORM=TRUE){
   
   plots<-list()
@@ -425,8 +435,8 @@ if (RUNME){
   
   brewer.pal.info
   #  df1 <- df0%>%filter(ID==1) 
-  df2<-one_density(B,v = 8,n=64)
-  df2<-mul_density(B,v = c(5:8),n=64)
+  df2<-one_density(B,v = 1,n=64)
+  df2<-mul_density(B,v = c(1:4),n=64)
   ggplot(df2,
          aes(x = x, y = 1, fill = y))+
     geom_tile()+#show.legend = F)+
@@ -447,10 +457,10 @@ if (RUNME){
 }
 
 # library(easyGgplot2)
-# B<-MATH2tibble(China_Seas)
-# plo<-plots_strips_distr(B,v=c(5:8),poi = 50,pp = 50,n = 32)
-# show(easyGgplot2::ggplot2.multiplot(plo[[1]]+theme(strip.text.y = element_blank()) ,
-#                                     plo[[2]]+theme(strip.text.y = element_blank()),
-#                                     plo[[3]]+theme(strip.text.y = element_blank()),
-#                                     plo[[4]],cols=4))
+ B<-MATH2tibble(China_Seas)
+ plo<-plots_strips_distr(B,v=c(5:8),poi = 50,pp = 50,n = 32)
+ show(easyGgplot2::ggplot2.multiplot(plo[[1]]+theme(strip.text.y = element_blank()) ,
+                                     plo[[2]]+theme(strip.text.y = element_blank()),
+                                     plo[[3]]+theme(strip.text.y = element_blank()),
+                                     plo[[4]],cols=4))
 # library(patchwork)

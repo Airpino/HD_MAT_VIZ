@@ -49,6 +49,64 @@ p_c <- ggplot(segment(ddata_v)) +
   scale_x_continuous(expand = c(0, 0),limits = c(0.5,(nva+0.5)))+
   theme_dendro()
 
+library(reshape2)
+## Create the heatmaps of row distances
+dimat<-WH_MAT_DIST(data[order_of_rows,sels])
+melted_cormat <- melt(round(dimat,6))
+#heatmap(dimat,Rowv = NA,Colv = NA)
+
+heat_map_ind<-ggplot(data = melted_cormat, aes(Var2, Var1, fill = value))+
+  geom_tile(color = "white")+
+  scale_fill_gradient2(low = "blue", high = "red", mid = "yellow", 
+                       #midpoint = 0, limit = c(-1,1), 
+                       space = "Lab", name="WH distance") +
+  theme_minimal()+ 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+                                   size = 8, hjust = 1))+
+  coord_fixed()
+heat_map_ind<-ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  #geom_tile()
+geom_raster() +
+  scale_fill_viridis_c()
+heat_map_ind
+
+
+## Create the heatmaps of col distances
+# corrmat 
+corrmat<-c_mat[order_of_cols,order_of_cols]
+#heatmap(WH.correlation(data[,sels[order_of_cols]]),Rowv = NA,Colv = NA)
+
+# Get upper triangle of the correlation matrix
+get_upper_tri <- function(cormat){
+  cormat[lower.tri(cormat)]<- NA
+  return(cormat)
+}
+upper_tri <- get_upper_tri(round(corrmat,4))
+melted_cormat <- melt(upper_tri, na.rm = TRUE)
+#melted_cormat <- melt(corrmat)
+heat_map_vars<-ggplot(data = melted_cormat, aes(Var2, Var1, fill = value))+
+  geom_tile(color = "white")+
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1,1), space = "Lab", 
+                       name="Pearson\nCorrelation") +
+  theme_minimal()+ 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+                                   size = 10, hjust = 1))+
+  coord_fixed()
+heat_map_vars
+
+
+df3<-prep_for_plot(B,v=sels,poi = 50,# uso le densità
+                   pp = 50,
+                   n = 32,#kernel density parameter
+                   order_of_rows = order_of_rows,
+                   order_of_cols = order_of_cols)
+df4<-prep_for_plot_freq(B,v=sels,# uso le frequenze
+                        n = 64,#kernel density parameter
+                        order_of_rows = order_of_rows,
+                        order_of_cols = order_of_cols)
+
+DDF_to<-create_new_df_to_plot_M(df4)
 
 
 
