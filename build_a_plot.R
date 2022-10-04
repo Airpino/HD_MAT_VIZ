@@ -16,9 +16,6 @@
 # $ NX     : num  0 0.0159 0.0317 0.0476 0.0635 ...
 # $ VAR    : Factor w/ 5 levels "1","2","3","4",..: 1 1 1 1 1 1 1 1 1 1 ...
 library(tidyverse)
-
-
-
 nrows<-length(levels(df4$ID_name))
 vars<-length(levels(df4$ID_VAR))
 ### set layout
@@ -27,35 +24,41 @@ per_right<-80 #perc for right panel header
 per_up <-10  #perc for top panel header
 per_bott<-90  #perc for bottom panel header
 
-
-x_ini<-x_fin<-y_ini<-y_fin<-val<-numeric()
-for (i in 1:nrows){
-  for (j in 1:vars){
-    tmp<-df4 %>% 
-      filter(ID_name==levels(ID_name)[i],
-             ID_VAR==levels(ID_VAR)[j])
-    if (nrow(tmp)==0) browser()
-    tmp_v<-unlist(tmp %>% 
-                    select(y))
-    x_ini<-c(x_ini,unlist(tmp %>% 
-                            select(NX))+j)
-   # x_fin<-c(x_fin,unlist(tmp %>% 
-    #                       select(NX))+j)
-    y_ini<-c(y_ini,rep(i,length(tmp_v)))
-    #y_fin<-c(y_fin,c(1:length(tmp_v))/length(tmp_v)+i)
-    val<-c(val,tmp_v)
-    
-  }
-}
-new_df<-data.frame(x_ini=x_ini,y_ini=y_ini,value=val)
-new_df<-new_df %>% 
-  mutate(val=if_else(val==0,NA_real_,val),
-         x_ini=(x_ini-min(x_ini))/diff(range(x_ini))*per_right+per_left,
-         y_ini=(y_ini-min(y_ini))/diff(range(y_ini))*per_bott)
-
-
-ppp<-ggplot(new_df,aes(x=x_ini,y=y_ini,fill=val))+
-  geom_raster()+scale_fill_gradient(low="yellow",high = "red",na.value = "white")
+# 
+# x_ini<-x_fin<-y_ini<-y_fin<-val<-numeric()
+# for (i in 1:nrows){
+#   for (j in 1:vars){
+#     tmp<-df4 %>% 
+#       filter(ID_name==levels(ID_name)[i],
+#              ID_VAR==levels(ID_VAR)[j])
+#     if (nrow(tmp)==0) browser()
+#     tmp_v<-unlist(tmp %>% select(y))
+#     x_ini<-c(x_ini,unlist(tmp %>% 
+#                             select(NX))+j)
+#    #x_fin<-c(x_fin,unlist(tmp %>% select(NX))+j)
+#     y_ini<-c(y_ini,rep(i,length(tmp_v)))
+#     #y_fin<-c(y_fin,c(1:length(tmp_v))/length(tmp_v)+i)
+#     val<-c(val,tmp_v)
+#     
+#   }
+# }
+# new_df<-data.frame(x_ini=x_ini,y_ini=y_ini,value=val)
+# new_df<-new_df %>% 
+#   mutate(val=if_else(val==0,NA_real_,val),
+#          x_ini=(x_ini-min(x_ini))/diff(range(x_ini))*per_right+per_left,
+#          y_ini=(y_ini-min(y_ini))/diff(range(y_ini))*per_bott)
+df5<-df4 %>% mutate(x_n=(NX+as.numeric(ID_VAR)-min(NX+as.numeric(ID_VAR)))/diff(range(NX+as.numeric(ID_VAR)))*per_right+per_left,
+                    y_n=(as.numeric(ID_name)-min(as.numeric(ID_name)))/diff(range(as.numeric(ID_name)))*per_bott,
+                    fc=y)
+ppp<-ggplot(df5 %>% mutate(fc=if_else(round(fc,4)==0,NA_real_,round(fc,4))),aes(x=x_n,y=y_n,fill=fc))+
+     geom_raster()+scale_fill_gradient(low="yellow",high = "red",na.value = "white")
+# ppp<-ggplot(df4 %>% mutate(y=if_else(round(y,4)==0,NA_real_,round(y,4))),aes(x=NX+as.numeric(ID_VAR),
+#                                                                              y=as.numeric(ID_name),
+#                                                                              fill=y))+
+#   geom_raster()+scale_fill_gradient(low="yellow",high = "red",na.value = "white")
+# 
+# ppp<-ggplot(new_df,aes(x=x_ini,y=y_ini,fill=val))+
+#   geom_raster()+scale_fill_gradient(low="yellow",high = "red",na.value = "white")
 # montiamo il dendrogramma sopra
 segs_of_vars<-ddata_v$segments
 rx<-range(c(unlist(segs_of_vars$x),unlist(segs_of_vars$xend)))
