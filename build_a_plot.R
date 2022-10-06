@@ -50,7 +50,8 @@ per_bott<-90  #perc for bottom panel header
 df5<-df4 %>% mutate(x_n=(NX+as.numeric(ID_VAR)-min(NX+as.numeric(ID_VAR)))/diff(range(NX+as.numeric(ID_VAR)))*per_right+per_left,
                     y_n=(as.numeric(ID_name)-min(as.numeric(ID_name)))/diff(range(as.numeric(ID_name)))*per_bott,
                     fc=y)
-ppp<-ggplot(df5 %>% mutate(fc=if_else(round(fc,4)==0,NA_real_,round(fc,4))),aes(x=x_n,y=y_n,fill=fc))+
+df6<-df5 %>% mutate(fc=if_else(round(fc,4)==0,NA_real_,round(fc,4)))
+ppp<-ggplot(df6,aes(x=x_n,y=y_n,fill=fc))+
      geom_raster()+scale_fill_gradient(low="yellow",high = "red",na.value = "white")
 # ppp<-ggplot(df4 %>% mutate(y=if_else(round(y,4)==0,NA_real_,round(y,4))),aes(x=NX+as.numeric(ID_VAR),
 #                                                                              y=as.numeric(ID_name),
@@ -74,25 +75,31 @@ ppp<-ppp +geom_segment(data=segs_of_vars,inherit.aes = F,aes(x=x,xend=xend,y=y,y
 #montiamo il dendrogramma a sinistra
 segs_of_inds<-ddata$segments
 rx<-range(c(unlist(segs_of_inds$x),unlist(segs_of_inds$xend)))
+rx2<-range(c(unlist(segs_of_inds$x),unlist(segs_of_inds$xend)))
 rx[1]<-rx[1]-0.5
 rx[2]<-rx[2]+0.5
 ### aggiusta qui!!!!
-segs_of_inds2<-segs_of_inds%>% mutate(x=(x-min(rx[1]))/diff(rx)*per_left,
-                                     xend=(x-min(rx[1]))/diff(rx)*per_left,
-                                     y=(y-0.5)/(max(y)+1)*per_bott,
-                                     yend=(yend-0.5)/(max(yend)+1)*per_bott)
+segs_of_inds2<-segs_of_inds%>% mutate(x=(x-rx[1])/(diff(rx))*(per_bott),
+                                     xend=(xend-rx[1])/(diff(rx))*per_bott,
+                                     y=(1-(y+0.5)/(max(y)+1))*per_left,
+                                     yend=(1-(yend+0.5)/(max(yend)+1))*per_left)
+segs_of_inds3<-segs_of_inds%>% mutate(x=(x-rx2[1])/(diff(rx2))*(per_bott),
+                                      xend=(xend-rx2[1])/(diff(rx2))*per_bott,
+                                      y=(1-(y+0.5)/(max(y)+1))*per_left,
+                                      yend=(1-(yend+0.5)/(max(yend)+1))*per_left)
 
-ppp<-ppp +geom_segment(data=segs_of_inds,inherit.aes = F,
-                  aes(y=(x-rx[1])/(diff(rx))*per_bott,
-                      yend=(xend-rx[1])/(diff(rx))*per_bott,
-                      x=(1-(y+0.5)/(max(y)+1))*per_left,
-                      xend=(1-(yend+0.5)/(max(yend)+1))*per_left))+
+ppp<-ppp +geom_segment(data=segs_of_inds2,inherit.aes = F,
+                  aes(y=x,
+                      yend=xend,
+                      x=y,
+                      xend=yend))+
   theme_void()
 ## attacchiamo le etichette righe e colonne
 
 ID_n<-data.frame(names=levels(df4$ID_name))
 ID_v<-data.frame(names=levels(df4$ID_VAR))
-
+ID_n <-ID_n %>% mutate(x=rep(102,nrow(.)),y=(c(1:(nrow(.))))/(nrow(.))*per_bott)
+ID_v <-ID_v %>% mutate(x=(c(1:nrow(.))-0.5)/nrow(.)*per_right+per_left,y=per_bott+2)
 # ggplot(ID_n,aes(x=0,y=c(1:nrow(ID_n))))+
 #   geom_text_repel(aes(label=names),size=2)
 

@@ -117,9 +117,10 @@ one_density_freq<-function(A,v=1,n=50,NORM=T, NX=T){
     name_ID<-c(name_ID,rep(ID_names[i],length(freqs)))
     name_var<-c(name_var,rep(names(A)[1],length(freqs)))
   }
-  if(NORM) my_y<-(my_y/max(my_y))
+  my_y_old<-my_y
+  if(NORM) {my_y<-(my_y/max(my_y))}
   if(NX) NX<-((my_x-min(my_x))/diff(range(my_x)))
-  df0<-data.frame(x=my_x,y=my_y,
+  df0<-data.frame(x=my_x,y=my_y,y_orig=my_y_old,
                   ID=factor(my_id,levels = as.character(c(1:nr))),
                   ID_VAR=name_var,ID_name=name_ID,
                   NX=NX)
@@ -457,10 +458,10 @@ if (RUNME){
 }
 
 # library(easyGgplot2)
- B<-MATH2tibble(China_Seas)
- plo<-plots_strips_distr(B,v=c(5:8),poi = 50,pp = 50,n = 32)
- show(easyGgplot2::ggplot2.multiplot(plo[[1]]+theme(strip.text.y = element_blank()) ,
-                                     plo[[2]]+theme(strip.text.y = element_blank()),
-                                     plo[[3]]+theme(strip.text.y = element_blank()),
-                                     plo[[4]],cols=4))
+ # B<-MATH2tibble(China_Seas)
+ # plo<-plots_strips_distr(B,v=c(5:8),poi = 50,pp = 50,n = 32)
+ # show(easyGgplot2::ggplot2.multiplot(plo[[1]]+theme(strip.text.y = element_blank()) ,
+ #                                     plo[[2]]+theme(strip.text.y = element_blank()),
+ #                                     plo[[3]]+theme(strip.text.y = element_blank()),
+ #                                     plo[[4]],cols=4))
 # library(patchwork)
