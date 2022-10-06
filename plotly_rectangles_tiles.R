@@ -2,10 +2,12 @@ library(plotly)
 
 library(ggdendro)
 library(HistDAWass)
-source("MATH_TO_TIBBLE.R")
-data<-HistDAWass:::c_Prepare(China_Month,simplify=T,qua=50,standardize=F)$x#China_Seas
+source("functions.R")
+#data<-HistDAWass:::c_Prepare(China_Month,simplify=T,qua=50,standardize=F)$x#China_Seas
+data<-my_math
 B<-MATH2tibble(data)
 sels=c(13:24)#c(5:8,17:20,29:32)
+sels=c(1:9)
 ### set layout
 per_left<-20 #perc for left panel header
 per_right<-80 #perc for right panel header

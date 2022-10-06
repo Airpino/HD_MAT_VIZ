@@ -9,7 +9,7 @@ source("MATH_TO_TIBBLE.R")
 library(plotly)
 library(ggdendro)
 library(HistDAWass)
-#source("MATH_TO_TIBBLE.R")
+source("functions.R")
 data<-OzoneFull
 B<-MATH2tibble(data)
 sels=c(1:4)#,17:20,29:32)
