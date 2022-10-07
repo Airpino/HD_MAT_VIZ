@@ -3,39 +3,16 @@
 library(readr)
 library(HistDAWass)
 library(tidyverse)
-# genres_v2 <- read_csv("genres_v2.csv")
-# genres_v2$genre<-factor(genres_v2$genre)
 
-tibble2MATH<-function(data, #a dataframe
-                      factorv=1, # the factor variable used for the new row names
-                      num_vars=c(1:3), # numerical variables to translate into distributions
-                      qua=100 #a number of quantiles in wich divide the distribution
-                      ){
-  
-  np=c(0:qua)/qua
-  
-  data[[factorv]] <- factor(data[[factorv]])
-  names_of_units <- as.character(levels(data[[factorv]]))
-  names_of_vars <- colnames(data)[num_vars]
+## Spotify data from Kaggle
+## from https://www.kaggle.com/code/codebreaker619/spotify-eda-and-predictions/data
+## https://www.kaggle.com/datasets/mrmorj/dataset-of-songs-in-spotify
+genres_v2 <- read_csv("genres_v2.csv")
+genres_v2$genre<-factor(genres_v2$genre)
 
-  data2<-data %>% select_at(c(factorv,num_vars))
-  MyMath<-MatH(nrows=length(names_of_units),ncols=length(num_vars),
-               rownames = names_of_units, varnames=names_of_vars)
-  for (i in 1:length(names_of_units)){
-    
-    for (j in 1:length(names_of_vars)){
-    #  browser()
-      tmp<-data2 %>% filter(.[[1]]==names_of_units[i]) %>% select_at(j+1)
-      
-      tmpx<-unname(quantile(unlist(tmp),p=np))
-      tmpd <-distributionH(x=tmpx,p=np)
-      MyMath@M[i,j][[1]]<-tmpd
-    }
-  }
-  return(MyMath)
-}
 
-my_math<-tibble2MATH(genres_v2,factorv = 19,qua=20)
+
+my_math<-tibble2MATH(genres_v2,factorv = 19,num_vars=c(1:2,4,6:10,16),qua=20)
 
 ######## spotify variables
 # Danceability: Describes how suitable a track is for dancing based on a combination of musical elements including tempo, rhythm stability, beat strength, and overall regularity.
