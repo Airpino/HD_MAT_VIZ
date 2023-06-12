@@ -1,0 +1,368 @@
+---
+title: "Eye IRIS plots for distributional data"
+output:
+  html_document:
+    code_folding: hide
+    df_print: paged
+---
+
+## Numeric distributional data
+
+Let's load some data
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+source("Functions_for_visualize.R")
+```
+
+
+```{r}
+data<-BLOOD
+plot(data)
+```
+
+## Distributional dataset
+
+A distributional dataset is a classical table with $N$ observations on the rows and $P$ variables, indexing the columns, such that the generic term $y_{ij}$ is a __numerical univariate distribution__
+
+$$y_{ij}\sim f_{ij}(x_j)$$
+where $x_j\in D_j \subset \Re$ and $f_{ij}(x_j)\geq 0$, 
+
+- $\int\limits_{x_j \subset D_j}f_{ij}(x_j)dx_{j}=1$, if the distribution has a continuous support;
+- $\sum\limits_{x_j\in D_j}{ f_{ij}(x_j)}=1$, if the distribution has a discrete support.
+
+
+
+## The basic plot for the $i$-th observation
+
+The $i$-th observation is the vector
+$$y_i=[y_{i1},\ldots,y_{ij},\dots,y_{iP}]$$
+ 
+Steps :
+
+1. __Domain discretization__   
+    - __For continuous variables__. For each variable $Y_j$ we consider the domain $D_j$ and, fixing a $K_j$ integer value we partition $D_j$ into $K_j$ equi-width intervals (bins) of values, such that:
+$$D_j=\left\{ B_{jk}=(a_k,b_k], \lvert \, b_k>a_k,\, k=1,\ldots,K_j\, , \bigcup_{k=1}^KB_{jk}=[\min(D_j),\max(D_j)],B_{jk}\cap B_{jk'}=\emptyset, \text{ for } k\neq k' \right\} $$
+    - __For discete variables__. For each variable $Y_j$ we consider the domain $D_j$ and, being $\# D_j=K_j$ the  cardinality of $D_j$, we consider the elements of $D_j$.
+
+2. __Choice of a divergent colour palette___ We consider a divergent color palette with $K_j$ levels, such that $K_1$ represent the lowest category and $K_j$ the highest one.
+
+3. __Stacked percentage barcharts__ We compute the mass observed in each bin/category for each $y_{ij}$
+
+For the $Y_i$ observation, $P$ bars are generated. The order of the bar can be decided accordingly to the user preferences, or can be suggested by a correlation analysis for all the data in advance (one may cluster the distributional variables using a hierarchical clustering based on the Wasserstein correlation and then using the order returned by after the aggregation).
+
+4. __Polar coordinates__ Polar coordinates allow to represent the stacked barcharts as circles that mimics an Eye Iris. We called this plot __Eye Iris__ plot (EI plot.)
+
+>NOTE: discretization can be done on standardized variables using the Wasserstein standard deviation
+
+
+### Example using BLOOD data
+
+#### The extremes of the domains of the variables
+
+```{r echo=FALSE}
+for(j in 1:get.MatH.ncols(data)){
+  print(paste0("Range of ", get.MatH.varnames(data)[j], 
+               " => [ ",
+               min(sapply(c(1:get.MatH.nrows(data)),function(x) min(data@M[x,j][[1]]@x))),
+               " ; ",
+               max(sapply(c(1:get.MatH.nrows(data)),function(x) max(data@M[x,j][[1]]@x))),
+               " ] ")
+  )
+}
+
+```
+### Choice of $K$ and of a color palette
+We fix $K=50$ and we will use a color palette from Red (low values), passing through Yellow (middle values) to Green (high values).
+
+```{r one, echo=FALSE, fig.height=1.5, fig.width=8}
+library(paletteer)
+K<-50
+cc<-as.vector(paletteer_d(`"MetBrewer::Paquin"`,n = K,type="continuous"))
+names(cc)<- c(1:50)
+DF<-data.frame(ID=c(1:K),val=rep(1,K))
+#p1<-
+ p<- ggplot(DF,aes(x=ID,y=val))+geom_bar(stat = "identity",width=1, 
+                                    aes(fill=as.factor(ID)), show.legend = F)+
+  scale_fill_manual(values = cc)
+ 
+ 
+ p+ geom_text(aes(x=-1,y=0.5,label="80"))+
+    geom_text(aes(x=K+2,y=0.5,label="270"))+
+    theme_void()+ ggtitle("Cholesterol")
+ p+ geom_text(aes(x=-1,y=0.5,label="10.2"))+
+    geom_text(aes(x=K+2,y=0.5,label="15"))+
+    theme_void()+ ggtitle("Hemoglobin")
+ p+ geom_text(aes(x=-1,y=0.5,label="30"))+
+    geom_text(aes(x=K+2,y=0.5,label="47"))+
+    theme_void()+ ggtitle("Hematocrit")
+# gro1<-ggplotGrob(p1)
+# show(gro1)
+# show(gro1)
+
+```
+
+Now, let's take the first observation
+
+```{r echo=FALSE, fig.height=2, fig.width=8}
+library(patchwork)
+p1<-plot(BLOOD[1,1]@M[[1]])+ggtitle("Cholesterol")
+p2<-plot(BLOOD[1,2]@M[[1]])+ggtitle("Hemoglobin")
+p3<-plot(BLOOD[1,3]@M[[1]])+ggtitle("Hematocrit")
+p1+p2+p3
+```
+
+Recode the distribution according to $K=50$ partition of the domains.
+
+```{r echo=FALSE, fig.height=2, fig.width=8}
+x1<-seq(min(sapply(c(1:get.MatH.nrows(data)),function(x) min(data@M[x,1][[1]]@x))),
+               max(sapply(c(1:get.MatH.nrows(data)),function(x) max(data@M[x,1][[1]]@x))),length.out=K+1)
+x2<-seq(min(sapply(c(1:get.MatH.nrows(data)),function(x) min(data@M[x,2][[1]]@x))),
+               max(sapply(c(1:get.MatH.nrows(data)),function(x) max(data@M[x,2][[1]]@x))),length.out=K+1)
+
+x3<-seq(min(sapply(c(1:get.MatH.nrows(data)),function(x) min(data@M[x,3][[1]]@x))),
+               max(sapply(c(1:get.MatH.nrows(data)),function(x) max(data@M[x,3][[1]]@x))),length.out=K+1)
+
+p1<-sapply(x1,function(x)compP(data@M[1,1][[1]],x))
+p2<-sapply(x2,function(x)compP(data@M[1,2][[1]],x))
+p3<-sapply(x3,function(x)compP(data@M[1,3][[1]],x))
+
+DF1<-data.frame(x=x1[1:K],xend=x1[2:(K+1)],freq=diff(p1),colo=c(1:K))
+pp1<-ggplot(DF1)+geom_rect(aes(xmin=x,xmax=xend,ymin=0,ymax=freq,fill=as.factor(colo)),show.legend = F)+scale_fill_manual(values = cc)+theme_minimal()+ggtitle("Cholesterol")
+DF2<-data.frame(x=x2[1:K],xend=x2[2:(K+1)],freq=diff(p2),colo=c(1:K))
+pp2<-ggplot(DF2)+geom_rect(aes(xmin=x,xmax=xend,ymin=0,ymax=freq,fill=as.factor(colo)),show.legend = F)+scale_fill_manual(values = cc)+theme_minimal()+ggtitle("Hemoglobin")
+DF3<-data.frame(x=x3[1:K],xend=x3[2:(K+1)],freq=diff(p3),colo=c(1:K))
+pp3<-ggplot(DF3)+geom_rect(aes(xmin=x,xmax=xend,ymin=0,ymax=freq,fill=as.factor(colo)),show.legend = F)+scale_fill_manual(values = cc)+theme_minimal()+ggtitle("Hematocrit")
+pp1+pp2+pp3
+```
+
+Since the bins represent classes of values, we can consider them as ranked _levels_ of the domain.
+
+We propose to see all the three distributions using a stacked percentage barchart as follows. Note that each level of color has a area that is proportional to the mass associated with each bin.
+
+```{r echo=FALSE, fig.height=4, fig.width=4}
+res2<-compute_LR_VARS_cont(data)
+#browser()
+  tmp_DF<-draw_VARS(res2)
+  nl<-50
+  #res<-discretize_data(BLOOD,n = nl)
+  res<-discretize_data(data,n = nl)
+  #res<-discretize_data(China_Month[,13:24],n = nl,absolute = T)
+  
+  p<-GEI_plot2(res$TIBN[,1:3],
+               selected = 1,
+               pupil = 0.0,
+               pupil.color="white", labels = res$TIBN$ID_name,levels_of_colors = nl,polar = F)+ggtitle("Stacked percentage barchart")
+  p
+```
+
+The dashed line is positioned at level $0.5$ suggesting where the median of each distribution is positioned taking into consideration the level of color associated with the bin of the respective domain.
+
+But, this kind of visualization is not so immediate for comparing several observations. Let's see an example:
+
+```{r echo=FALSE}
+p1<-GEI_plot2(res$TIBN[,1:3],
+               selected = 1,
+               pupil = 0.0,
+               pupil.color="white", labels = res$TIBN$ID_name,levels_of_colors = nl,polar = F)
+p2<-GEI_plot2(res$TIBN[,1:3],
+               selected = 2,
+               pupil = 0.0,
+               pupil.color="white", labels = res$TIBN$ID_name,levels_of_colors = nl,polar = F)
+p3<-GEI_plot2(res$TIBN[,1:3],
+               selected = 3,
+               pupil = 0.0,
+               pupil.color="white", labels = res$TIBN$ID_name,levels_of_colors = nl,polar = F)
+p4<-GEI_plot2(res$TIBN[,1:3],
+               selected = 4,
+               pupil = 0.0,
+               pupil.color="white", labels = res$TIBN$ID_name,levels_of_colors = nl,polar = F)
+
+p1+p2+p3+p4
+```
+
+For this reason, we propose to use a plot based on polar coordinates, but adding _pupil_ for reducing the distorsion due to the polar transformation, as follows:
+
+```{r echo=FALSE, fig.height=4, fig.width=4}
+p<-GEI_plot2(res$TIBN[,1:3],
+               selected = 1,
+               pupil = 0.5,
+               pupil.color="grey20", labels = res$TIBN$ID_name,levels_of_colors = nl)+ggtitle("Eye Iris Plot")
+  p
+  ggsave(filename="fig1.png",plot=p)
+```
+
+Since a human is able to catch eyes shapes and color, we believe that this kind of visualization can be more interpretable.
+For example, let's see all the 14 observations together.
+
+
+```{r echo=FALSE}
+# 
+  pp<-list()
+ppgro<-list()
+  for(i in 1:nrow(res$TIBN)){
+    # pp[[i]]<-GEI_plot3(res$TIBN[,1:12],
+    #                    selected = i,
+    #                    pupil = 0.4,
+    #                    pupil.color="black",notick = T, 
+    #                    labels = res$TIBN$ID_name,levels_of_colors = nl,palette=7)
+    pp[[i]]<-GEI_plot2(res$TIBN[,1:3],
+              selected = i,
+              pupil = 0.4,
+              pupil.color="grey30", notick = T,
+              labels = res$TIBN$ID_name,levels_of_colors = nl)
+    ppgro[[i]]<-ggplotGrob(pp[[i]])
+  }
+```
+
+```{r echo=FALSE,out.width="200px", out.height = "200px"}
+library(knitr)
+include_graphics("fig1.png")
+```
+
+
+```{r echo=FALSE}
+pp[[1]]+pp[[2]]+pp[[3]]+pp[[4]]+pp[[5]]+pp[[6]]+pp[[7]]+ 
+  pp[[8]]+pp[[9]]+pp[[10]]+pp[[11]]+pp[[12]]+pp[[13]]+pp[[14]]+ 
+  plot_layout(ncol = 7)
+```
+
+
+### Interpretation
+
+According to the filling colours we can compare both observations and distributional values.
+
+## The Enriched plot
+
+We propose to add information about dispersion and skewness.
+
+### The dispersion
+
+Each variable in the dataset may have a different dispersion. Each distributional variable has its dispersion accounted by its proper standard deviation $\sigma_{ij}$.
+We normalize each standard deviation $\sigma_{ij}$ by the maximum standard deviation of observed for the the $j$-th variable $\max(\sigma_{ij})$ where $i=1,\ldots,N$.
+A segment, centered in the respective sector, allow to perceive the dispersion associated with each distribution.
+
+### The skewness
+
+Each $y_{ij}$ has its skewness value computed via the __Third standardized moment__ $\gamma_{ij}$.
+
+We represent the skewness of $y_{ij}$ external to the dashed circle if it is positive, while it is positioned internally if it is negative. The distance from the dashed circle represent the absolute value of the skewness index. If the segment is very close to the dashed circle, it means that the distribution is almost symmetric.
+
+
+```{r echo=FALSE}
+# 
+  pp_en<-list()
+ppgro_en<-list()
+  for(i in 1:nrow(res$TIBN)){
+    pp[[i]]<-GEI_plot2(res$TIBN[,1:3],
+              selected = i,
+              TITLE = F,
+              pupil = 0.4,
+              pupil.color="grey30", notick = T,
+              labels = res$TIBN$ID_name,levels_of_colors = nl)
+    ppgro[[i]]<-ggplotGrob(pp[[i]])
+     pp_en[[i]]<-GEI_plot3(res$TIBN[,1:3],
+                        selected = i,
+                        TITLE = T,
+                        pupil = 0.4,
+                        pupil.color="black",notick = T, 
+                        labels = res$TIBN$ID_name,
+                        #labels = c(1:14),
+                        levels_of_colors = nl,palette=0,
+                        var_bar = T,var_DF = tmp_DF %>% filter(IDr==i),
+              skewness_plo = T)
+    
+    ppgro_en[[i]]<-ggplotGrob(pp_en[[i]])
+  }
+```
+
+```{r echo=FALSE}
+pp_en[[1]]+pp_en[[2]]+pp_en[[3]]+pp_en[[4]]+pp_en[[5]]+pp_en[[6]]+pp_en[[7]]+ 
+  pp_en[[8]]+pp_en[[9]]+pp_en[[10]]+pp_en[[11]]+pp_en[[12]]+pp_en[[13]]+pp_en[[14]]+ 
+  plot_layout(ncol = 7)
+```
+
+## An example applied to Hierarchical clustering
+
+```{r fig.height=4, fig.width=5}
+library(ggdendro)
+res3<-WH_hclust(data,standardize = T)
+dendro_data<-ggdendro::dendro_data(res3)
+hplo<-ggplot() +
+  geom_segment(data = segment(dendro_data), 
+               aes(x = x, y = y, xend = xend, yend = yend)
+  ) +
+  geom_text(data = label(dendro_data), 
+            aes(x = x, y = y, label = label, hjust = 0), 
+            size = 3
+  ) 
+   
+
+size_mult<-0.6
+for(i in 1:length(res3$order)){
+  hplo<-hplo+
+    annotation_custom(ppgro[[res3$order[i]]], 
+                      ymin=1.3-size_mult, 
+                      ymax=1.3+size_mult, 
+                      xmin=dendro_data$labels$x[i]-size_mult, 
+                      xmax=dendro_data$labels$x[i]+size_mult)
+}
+hplo+
+coord_flip() +
+   scale_y_reverse(expand = c(0.4, 0))+theme_void()
+```
+
+## in a PCA
+
+```{r include=FALSE}
+Pca_res<-WH.MultiplePCA(data,c(1:3),quantiles=20)
+```
+
+```{r}
+coord<-as_tibble(Pca_res$ind$coord)
+pca12<-ggplot(coord,aes(x=Dim.1,y=Dim.2))+geom_point()+geom_hline(yintercept = 0,color="grey")+geom_vline(xintercept = 0,color="grey")
+size_mult<-0.5
+for(i in 1:nrow(coord)){
+  pca12<-pca12+
+    annotation_custom(ppgro_en[[i]], 
+                      ymin=coord$Dim.2[i]-size_mult, 
+                      ymax=coord$Dim.2[i]+size_mult, 
+                      xmin=coord$Dim.1[i]-size_mult, 
+                      xmax=coord$Dim.1[i]+size_mult)
+}
+pca12+
+  scale_y_continuous(expand = c(0.2, 0.2))+
+  scale_x_continuous(expand = c(0.2, 0.2))+
+  xlab(paste0("Dim. 1 (",round(Pca_res$eig[1,2],2),"%) "))+
+  ylab(paste0("Dim. 2 (",round(Pca_res$eig[2,2],2),"%) "))+
+  theme_minimal()
+```
+
+# Heatmaps for distributional data
+
+## Pure
+
+```{r}
+show(Dist_HMAP_c(BLOOD))
+```
+
+
+## Row clustering
+
+```{r}
+show(Dist_HMAP_c(BLOOD,hclu_R = T))
+```
+
+
+## column custering
+
+```{r}
+show(Dist_HMAP_c(BLOOD,hclu_C = T))
+```
+
+
+## Both
+
+```{r}
+show(Dist_HMAP_c(BLOOD,hclu_R = T,hclu_C = T))
+```
+

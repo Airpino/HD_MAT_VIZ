@@ -1,6 +1,9 @@
 library(HistDAWass)
 library(tidyverse)
-
+library(ggtext)
+library(ggfittext)
+library(plotly)
+source("functions.R")
 ## this function takes a MATH and discretizes the distributions
 ## by cutting the domain of each variable (col) into n equi-width classes
 ## Can be improved for avoiding outliers!(TO BE DONE!)
@@ -15,10 +18,6 @@ discretize_data<-function(MAT,variable=1,n=10,absolute=F){
     min_ab<- Inf
     max_ab<- -Inf
     for(i in 1:ncol(TIB)){
-      
-      
-      
-      
       if(is(TIB[[i]])[[1]]=="continuous distr"){
         t_min_dom<-min(sapply(TIB[[i]], function(x) min(x[,1])))
         t_max_dom<-max(sapply(TIB[[i]], function(x) max(x[,1])))
@@ -28,7 +27,7 @@ discretize_data<-function(MAT,variable=1,n=10,absolute=F){
     }
     
     for(i in 1:ncol(TIB)){
-       if(is(TIB[[i]])[[1]]=="continuous distr"){
+      if(is(TIB[[i]])[[1]]=="continuous distr"){
         min_dom<-min_ab
         max_dom<-max_ab
         limits <- seq(min_dom,max_dom,length.ou=n+1)
@@ -75,6 +74,84 @@ discretize_data<-function(MAT,variable=1,n=10,absolute=F){
   return(list(TIBN=TIBN,oriTIB=TIB)) 
 }
 
+
+discretize_normalized_data<-function(MAT,n=10){
+  #we cut -3 3
+  STD_H<-sapply(c(1:get.MatH.ncols(MAT)), 
+                function(x) sqrt(HistDAWass::WH.var.covar(MAT[,x])))
+  # sapply(c(1:get.MatH.ncols(MAT)), function(x) WH.vec.mean(data[,x])@m)
+  MM_H<-sapply(c(1:get.MatH.ncols(MAT)), function(x) mean(sapply(c(1:get.MatH.nrows(MAT)),function(y)MAT[y,x]@M[[1]]@m)))
+  
+  for (i in 1:get.MatH.nrows(MAT)){
+    for(j in 1:get.MatH.ncols(MAT)){
+      MAT@M[i,j][[1]]@x<-(MAT@M[i,j][[1]]@x-MM_H[j])/STD_H[j]
+      MAT@M[i,j][[1]]@m<-(MAT@M[i,j][[1]]@m-MM_H[j])/STD_H[j]
+      MAT@M[i,j][[1]]@s<-MAT@M[i,j][[1]]@s/STD_H[j]
+      
+    }
+  }
+  
+  TIB<-MATH2tibble(MAT)
+  TIBN<-TIB
+  for(i in 1:ncol(TIB)){
+    if(is(TIB[[i]])[[1]]=="list") class(TIB[[i]])="continuous distr"
+  }
+  
+  #if(absolute){
+  min_ab<- -Inf
+  max_ab<- Inf
+  limits <- c(-Inf,seq(-3,3,length.out=n-1),Inf)
+  for(i in 1:ncol(TIB)){
+    if(is(TIB[[i]])[[1]]=="continuous distr"){
+      min_dom<-min_ab
+      max_dom<-max_ab
+      
+      for(r in 1:nrow(TIB)){
+        tmp<-MAT@M[r,i][[1]]
+        cdf<-sapply(limits,function(x) compP(tmp,x))
+        TIBN[[i]][[r]]=data.frame(xmin=limits[1:n],
+                                  xmax=limits[2:(n+1)],
+                                  cl_lab=paste0("[",round(limits[1:n],3)," ; ",round(limits[2:(n+1)],3),"]"),
+                                  cdf_min=cdf[1:n],
+                                  cdf_max=cdf[2:(n+1)],
+                                  cdf=cdf[2:(n+1)],
+                                  x_cat=c(1:n),
+                                  freq=cdf[2:(n+1)]-cdf[1:n])%>% filter(freq>0) %>% 
+          select(x_cat,freq,cdf,everything())
+      }
+      
+    }
+  }
+  #}else{
+  # for(i in 1:ncol(TIB)){
+  #   
+  #   if(is(TIB[[i]])[[1]]=="continuous distr"){
+  #     min_dom<-min(sapply(TIB[[i]], function(x) min(x[,1])))
+  #     max_dom<-max(sapply(TIB[[i]], function(x) max(x[,1])))
+  #     limits <- seq(min_dom,max_dom,length.ou=n+1)
+  #     for(r in 1:nrow(TIB)){
+  #       tmp<-MAT@M[r,i][[1]]
+  #       cdf<-sapply(limits,function(x) compP(tmp,x))
+  #       TIBN[[i]][[r]]=data.frame(xmin=limits[1:n],
+  #                                 xmax=limits[2:(n+1)],
+  #                                 cl_lab=paste0("[",round(limits[1:n],3),"-",round(limits[2:(n+1)],3),"]"),
+  #                                 cdf_min=cdf[1:n],
+  #                                 cdf_max=cdf[2:(n+1)],
+  #                                 cdf=cdf[2:(n+1)],
+  #                                 x_cat=c(1:n),
+  #                                 freq=cdf[2:(n+1)]-cdf[1:n])%>% filter(freq>0) %>% 
+  #         select(x_cat,freq,cdf,everything())
+  #     }
+  #     
+  #   }
+  # }
+  #}
+  return(list(TIBN=TIBN,oriTIB=TIB,NEWMAT=MAT)) 
+}
+
+
+
+
 ## Squish data
 squish_data<-function(Tib,labels=c(1:nrow(Tib))) {
   Tib<-as_tibble(Tib)
@@ -112,7 +189,7 @@ GEI_plot<-function(Tib,selected=1,
                    skewness_plo=FALSE,
                    alpha=1,
                    bg="transparent",BW=F,
-                   polar=T,legend=F,iris=0.2, iris.color="black"){
+                   polar=T,legend=F,pupil=0.2, pupil.color="black"){
   DF<-squish_data(Tib[selected,],labels = labels[selected])
   if(skewness_plo){
     bstat<-DF %>% 
@@ -149,8 +226,8 @@ GEI_plot<-function(Tib,selected=1,
                   show.legend = F,alpha=alpha)
   }
   
-  p<-p+ylim(c(-iris,1))+
-    geom_rect(aes(xmin=0.5,ymin = -iris,xmax=max(IDc)+.5,ymax=0),fill=iris.color)+
+  p<-p+ylim(c(-pupil,1))+
+    geom_rect(aes(xmin=0.5,ymin = -pupil,xmax=max(IDc)+.5,ymax=0),fill=pupil.color)+
     scale_fill_manual(
       values = cols)+
     #    scale_fill_brewer(palette = "Spectral",direction=1)+
@@ -209,8 +286,8 @@ GEI_plot2<-function(Tib,selected=1,
                     skewness_plo=FALSE,
                     alpha=1,
                     bg="transparent",BW=F,
-                    polar=T,legend=F,iris=0.2, iris.color="black",levels_of_colors=10,
-                    palette=1){
+                    polar=T,legend=F,pupil=0.2, pupil.color="black",levels_of_colors=10,
+                    palette=0){
   DF<-squish_data(Tib[selected,],labels = labels[selected])
   if(skewness_plo){
     bstat<-DF %>% 
@@ -239,7 +316,7 @@ GEI_plot2<-function(Tib,selected=1,
     if (palette==5) cc<-as.vector(paletteer_d("MetBrewer::Tiepolo",n = levels_of_colors,type="continuous"))
     if (palette==6) cc<-as.vector(paletteer_d("PNWColors::Bay",n = levels_of_colors,direction=-1,type="continuous"))
     if (palette==7) cc<-as.vector(paletteer_c("scico::vik",n = levels_of_colors))
-      
+    
     
     #as.vector(paletteer_c("grDevices::RdYlGn", levels_of_colors))
     #as.vector(paletteer_d(`"feathers::rose_crowned_fruit_dove"`,n = levels_of_colors,type="continuous"))
@@ -265,8 +342,8 @@ GEI_plot2<-function(Tib,selected=1,
                   show.legend = F,alpha=alpha)
   }
   
-  p<-p+ylim(c(-iris,1))+
-    geom_rect(aes(xmin=0.5,ymin = -iris,xmax=max(IDc)+.5,ymax=0),fill=iris.color)+
+  p<-p+ylim(c(-pupil,1))+
+    geom_rect(aes(xmin=0.5,ymin = -pupil,xmax=max(IDc)+.5,ymax=0),fill=pupil.color)+
     scale_fill_manual(
       values = cc)+
     #    scale_fill_brewer(palette = "Spectral",direction=1)+
@@ -413,25 +490,32 @@ compute_LR_VARS_cont<-function(MAT){#Hmat continuous
   return(res)
 }
 
-draw_VARS<-function(res2){
+draw_VARS<-function(res2,SDS=sapply(c(1:get.MatH.ncols(data)),function(x) sqrt(WH.var.covar((data[,x]))))){
   #meas<-c("Mean","Median","SD","VAR", "SKEW", "L_MAD","R_MAD","L_VAR","R_VAR")
   p<-dim(res2)[2]
-  MAXvars<-sapply(as_tibble(res2[,,"VAR",drop=F]),max)
-  Vars<-res2[,,"VAR",drop=F]
-  Perc_L_Vars<-res2[,,"L_VAR",drop=F]/Vars
-  Perc_R_Vars<-res2[,,"R_VAR",drop=F]/Vars
+  MAXvars<-sapply(as_tibble(res2[,,"VAR",drop=T]),max)
+  MAXsd<-sapply(as_tibble(res2[,,"SD",drop=T]),max)
+  Vars<-res2[,,"VAR",drop=T]
+  Sds_s<-res2[,,"SD",drop=T]
+  Perc_L_Vars<-res2[,,"L_VAR",drop=T]/Vars
+  Perc_R_Vars<-res2[,,"R_VAR",drop=T]/Vars
   V1<-as.vector(Vars)
   L1<-as.vector(Perc_L_Vars)
   R1<-as.vector(Perc_R_Vars)
+  SDS_s<-as.vector(Sds_s)
   IDr<-rep(c(1:(dim(res2)[1])),dim(res2)[2])
   Names_r<-rep(dimnames(res2)[[1]],dim(res2)[2])
   IDc<-rep(c(1:(dim(res2)[2])),each=dim(res2)[1])
-  Names_c<-rep(dimnames(res2)[[2]],dim(res2)[1])
+  Names_c<-rep(dimnames(res2)[[2]],each=dim(res2)[1])
   MAX_V<-rep(MAXvars,each=dim(res2)[1])
-  DF<-data.frame(IDr,Names_r,IDc,Names_c,VAR=V1,MAX_V,L1,R1)
+  # browser()
+  MAX_S<-rep(MAXsd,each=dim(res2)[1])
+  DF<-data.frame(IDr,Names_r,IDc,Names_c,VAR=V1,SD=SDS_s,MAX_V,L1,R1,MAX_S)
+  
   DF<-DF %>% mutate(xmin=IDc,xmax=IDc,
-                    y1min=0,y1max=VAR/MAX_V*0.5*L1,
-                    y2min=y1max, y2max=VAR/MAX_V*0.5,PROP=VAR/MAX_V*0.5)
+                    y1min=0,y1max=SD/MAX_S*0.25,
+                    y2min=y1max, y2max=SD/MAX_S*0.25,PROP=SD/MAX_S*0.5)
+  
   # pl<-ggplot(DF, aes(x=IDc))+
   #   geom_rect(aes(xmin=xmin,ymin = y1min,xmax=xmax,ymax=y1max),fill="white")+
   #   geom_rect(aes(xmin=xmin,ymin = y2min,xmax=xmax,ymax=y2max),fill="black")
@@ -449,12 +533,16 @@ draw_VARS<-function(res2){
 }
 
 GEI_plot3<-function(Tib,selected=1,
-                    labels=c(1:nrow(Tib)),TITLE=T,notick=F,
+                    labels=c(1:nrow(Tib)),
+                    TITLE=T,
+                    notick=F,
                     skewness_plo=FALSE,
                     alpha=1,
-                    bg="transparent",BW=F,
-                    polar=T,legend=F,
-                    iris=0.2, iris.color="black",
+                    bg="transparent",
+                    BW=F,
+                    polar=T,
+                    legend=F,
+                    pupil=0.2, pupil.color="black",
                     levels_of_colors=10,
                     palette=1, 
                     var_bar=T,
@@ -511,8 +599,8 @@ GEI_plot3<-function(Tib,selected=1,
                   show.legend = F,alpha=alpha)
   }
   
-  p<-p+ylim(c(-iris,1))+
-    geom_rect(aes(xmin=0.5,ymin = -iris,xmax=max(IDc)+.5,ymax=0),fill=iris.color)+
+  p<-p+ylim(c(-pupil,1))+
+    geom_rect(aes(xmin=0.5,ymin = -pupil,xmax=max(IDc)+.5,ymax=0),fill=pupil.color)+
     scale_fill_manual(
       values = cc)+
     #    scale_fill_brewer(palette = "Spectral",direction=1)+
@@ -525,27 +613,27 @@ GEI_plot3<-function(Tib,selected=1,
   
   if(var_bar){
     tmp<-var_DF
-    
     p<-p+geom_segment(data=tmp,aes(x=(xmin+xmax)*0.5,xend=(xmin+xmax)*0.5,
-                                   y = y1min+(1-PROP)*0.5,yend=y1max+(1-PROP)*0.5),
-                   color="grey30",size=1.5)+
-         geom_segment(data=tmp,aes(x=(xmin+xmax)*0.5,xend=(xmin+xmax)*0.5,
-                                   y = y2min+(1-PROP)*0.5,yend=y2max+(1-PROP)*0.5),
-                   color="grey30",size=1.5)#+
-      #   geom_segment(aes(x=0.5,xend=p+0.5,y=0,yend=0))+
-      #   ylim(c(0,1))+theme_void()+
-      #   coord_polar()
+                                   y = 0.5-PROP*0.5,yend=0.5+PROP*0.5),
+                      color="grey20",linewidth=1.5)
+    # +
+    #      geom_segment(data=tmp,aes(x=(xmin+xmax)*0.5,xend=(xmin+xmax)*0.5,
+    #                                y = y2min+(1-PROP)*0.5,yend=y2max+(1-PROP)*0.5),
+    #                color="grey30",linewidth=1.5)#+
+    #   #   geom_segment(aes(x=0.5,xend=p+0.5,y=0,yend=0))+
+    #   ylim(c(0,1))+theme_void()+
+    #   coord_polar()
   }
   
   if(skewness_plo){
     bstat$x<-c(1:nrow(bstat))
     
     p<-p+geom_segment(inherit.aes = F,data=bstat,
-                    aes(x=x+0.2,xend=x-0.2,y=coord,yend=coord),
-                    color="black",#fill="orange",shape=8,
-                    alpha=0.7,show.legend = F,
-                    #stroke=1,
-                    linewidth=1)
+                      aes(x=x+0.2,xend=x-0.2,y=coord,yend=coord),
+                      color="black",#fill="orange",shape=8,
+                      alpha=0.7,show.legend = F,
+                      #stroke=1,
+                      linewidth=1)
   }
   
   if(polar) p<-p+coord_polar()+theme_minimal()
@@ -583,43 +671,203 @@ GEI_plot3<-function(Tib,selected=1,
   return(p) 
 }
 
+Dist_HMAP_c<-function(Dmat, # original distributional data
+                      lev.col=20,
+                      hclu_R=F,
+                      hclu_C=F,
+                      exp_y_bott=0.2,
+                      exp_x_right=0,
+                      cut_labs_x=0,
+                      cut_labs_y=0,
+                      size_lab_x=3,
+                      size_lab_y=3,
+                      space_x=0.02,
+                      space_y=0.02,
+                      angle_x_lab=45,
+                      angle_y_lab=0,
+                      gg_fit_text=F,
+                      interactive=F){
+  n<-get.MatH.nrows(Dmat)
+  p<-get.MatH.ncols(Dmat)
+  row_labs<-get.MatH.rownames(Dmat)
+  col_labs<-get.MatH.varnames(Dmat)
+  
+  
+  res<-discretize_normalized_data(Dmat,n = lev.col)
+  Dmat<-res$NEWMAT
+  
+  row_ord<-c(1:n)
+  col_ord<-c(1:p)
+  if(hclu_R){ 
+    HC_r<-WH_hclust(Dmat)
+    row_ord<-HC_r$order
+    
+  }
+  if(hclu_C){
+    
+    HC_c<-hclust(as.dist(sqrt(1-round(WH.correlation(Dmat),8)^2)))
+    col_ord<-HC_c$order
+  }
+  
+  res<-discretize_data(Dmat,n = lev.col)# uses the minimum and the maximum of each variable
+  DF<-squish_data(res$TIBN[,1:p],labels=res$TIBN[,(p+1)])
+  
+  #create rectangles
+  
+  DF<- DF %>% mutate(IDc_fin=as.numeric(factor(IDc,levels=col_ord)),
+                     IDr_fin=as.numeric(factor(IDr,levels=row_ord)))
+  DF<-DF %>% mutate(min_cdf=if_else(freq==cdf,0,cdf-freq))
+  DF<-DF %>% mutate(Xmin=IDc_fin-0.5+min_cdf*(1-space_x),
+                    Xmax=IDc_fin-0.5+cdf*(1-space_x),
+                    Ymin=IDr_fin-(0.5-space_y),
+                    Ymax=IDr_fin+(0.5-space_y))
+  
+  
+  cc<-as.vector(paletteer_d(`"MetBrewer::Paquin"`,n = lev.col,type="continuous"))
+  p0<-ggplot(DF)+geom_rect(aes(xmin=Xmin,xmax=Xmax,ymin=Ymin, ymax=Ymax, 
+                               fill=as.factor(dom),
+                               text=paste0("Id: ",labID,
+                                           "</br></br>Var: ",labVar)),
+                           show.legend = F)+scale_fill_manual(values=cc)
+  
+  labr_df<-data.frame(y=c(1:n),lab=row_labs[row_ord])
+  
+  
+  if(gg_fit_text){  
+    p0<-p0+geom_fit_text(data=labr_df,aes(xmin=rep(p+0.5,n),
+                                          xmax=rep(p+0.5+min(1,0.1*p),n),
+                                          ymin=y-0.5,
+                                          ymax=y+0.5,label=lab))
+  }else{
+    p0<-p0+scale_y_continuous(breaks=seq(1,n,1),labels= labr_df$lab,position = "right",
+                              expand = expansion(mult = c(0.01,0)))
+      # geom_text(data=labr_df, aes(x=rep(p+0.5,n),y=y,label=lab),
+      #           hjust=0,
+      #           vjust=0.5,#nudge_x = 0.1,
+      #           angle=angle_y_lab,
+      #           size=size_lab_y)
+    
+  }
+  #p0<-p0+scale_x_continuous(expand = expansion(mult = c(0.01, .2+(exp_x_right))))
+ 
+  labc_df<-data.frame(x=c(1:p),lab=col_labs[col_ord])
+  xv_j<-0.5
+  xh_j<-1
+  if(abs(angle_x_lab<10)){
+    xv_j<-1
+    xh_j<-0.5
+  }
+  
+  if(gg_fit_text){ 
+    p0<-p0+
+       geom_fit_text(data=labc_df,aes(xmin=x-0.5,xmax=x+0.5,ymin=rep(-0.5-(p*0.1),p),ymax=0.5,
+                                      x=x,y=rep(0,p),
+                                      label=lab))
+  }else{
+    p0<-p0+scale_x_continuous(breaks=seq(1,p,1),labels= labc_df$lab,position = "bottom",
+                              expand = expansion(mult = c(0.01,0)))
+       # geom_text(data=labc_df, aes(y=rep(0,p),
+       #                             x=x,label=lab),
+       #                vjust=xv_j, hjust=xh_j,angle=angle_x_lab,size=size_lab_x)
+    }
+  
+   # p0<-p0+ scale_y_continuous(expand = expansion(mult = c(exp_y_bott,0)))
+  
+  if(hclu_R){
+    dendro_data<-ggdendro::dendro_data(HC_r)
+    ss<-dendro_data$segments
+    RY<-diff(range(c(ss$y,ss$yend)))
+    minY<-min(c(ss$y,ss$yend))
+    
+    ss$y<-(ss$y-minY)/RY*0.25*(p+1)
+    ss$yend<-(ss$yend-minY)/RY*0.25*(p+1)
+    
+    p0<-p0+
+      geom_segment(data = ss, 
+                   aes(y = x, x = -y+0.45, yend = xend, xend = -yend+0.45)
+      )
+  }
+  
+  if(hclu_C){
+    dendro_data<-ggdendro::dendro_data(HC_c)
+    ss<-dendro_data$segments
+    RY<-diff(range(c(ss$y,ss$yend)))
+    minY<-min(c(ss$y,ss$yend))
+    
+    ss$y<-(ss$y-minY)/RY*0.25*(n+1)
+    ss$yend<-(ss$yend-minY)/RY*0.25*(n+1)
+    
+    p0<-p0+
+      geom_segment(data = ss, 
+                   aes(x = x, y = y+n+0.6, xend = xend, yend = yend+n+0.6)
+      )
+  }
+  
+  
+  p0<-p0+theme(panel.border = element_blank(), 
+               panel.grid.major = element_blank(),
+               panel.grid.minor = element_blank(), 
+               axis.line = element_blank(),
+               panel.background = element_blank(),
+               axis.ticks.x=element_blank(),
+               axis.ticks.y=element_blank(),
+               axis.title=element_blank(),
+               axis.text.x = element_text(size = size_lab_x, angle = angle_x_lab,
+                                          #vjust=xv_j, 
+                                          hjust=xh_j),
+               axis.text.y = element_text(size = size_lab_y, angle = angle_y_lab,))
+  
+  if(interactive){
+    p0<-ggplotly(p0,tooltip = c("text")) %>% plotly::layout(yaxis=list(side="right"),showlegend = FALSE)
+  }
+  return(p0)
+}
 
+ggplotly(Dist_HMAP_c(BLOOD,hclu_R = T,hclu_C = T,angle_x_lab = 0)+theme_bw(),
+         tooltip = c("text")) %>% 
+  plotly::layout(showlegend = FALSE)
 
 # EXAMPLE  -----
 
 
-run_that<-T
+run_that<-F
 if (run_that){
-  res2<-compute_LR_VARS_cont(China_Month[,13:24])
-  tmp_DF<-draw_VARS(res2)
+  data<-China_Month[,13:24]
+  data<-BLOOD
+  
+  # browser()
   nl<-50
   #res<-discretize_data(BLOOD,n = nl)
-  res<-discretize_data(China_Month[,13:24],n = nl)
+  res<-discretize_data(data,n = nl)
+  res<-discretize_normalized_data(data,n = nl)
+  data<-res$NEWMAT
+  res2<-compute_LR_VARS_cont(data)
+  tmp_DF<-draw_VARS(res2)
   #res<-discretize_data(China_Month[,13:24],n = nl,absolute = T)
   
-  p<-GEI_plot2(res$TIBN[,1:12],
+  p<-GEI_plot2(res$TIBN[,1:get.MatH.ncols(data)],
                selected = 1,
-               iris = 0.3,
-               iris.color="white", labels = res$TIBN$ID_name,levels_of_colors = nl,
+               pupil = 0.3,
+               pupil.color="white", labels = res$TIBN$ID_name,levels_of_colors = nl,
                palette=4)
   # 
   pp<-list()
   for(i in 1:nrow(res$TIBN)){
     # pp[[i]]<-GEI_plot3(res$TIBN[,1:12],
     #                    selected = i,
-    #                    iris = 0.4,
-    #                    iris.color="black",notick = T, 
+    #                    pupil = 0.4,
+    #                    pupil.color="black",notick = T, 
     #                    labels = res$TIBN$ID_name,levels_of_colors = nl,palette=7)
-    pp[[i]]<-GEI_plot3(res$TIBN[,1:12],
-              selected = i,
-              iris = 0.4,
-              iris.color="grey30", notick = T,
-              labels = res$TIBN$ID_name,levels_of_colors = nl,
-              palette=7,
-              var_bar = T,var_DF = tmp_DF %>% filter(IDr==i),
-              skewness_plo = T)
+    pp[[i]]<-GEI_plot3(res$TIBN[,1:get.MatH.ncols(data)],
+                       selected = i,
+                       pupil = 0.4,
+                       pupil.color="grey30", notick = T,
+                       labels = res$TIBN$ID_name,levels_of_colors = nl,
+                       palette=7,
+                       var_bar = T,var_DF = tmp_DF %>% filter(IDr==i),
+                       skewness_plo = T)
     
-    }
+  }
   library(patchwork)
   pp[[1]]+pp[[2]]+pp[[3]]+pp[[4]]+pp[[5]]+pp[[6]]+pp[[7]]+pp[[8]]+pp[[9]]+pp[[10]]+pp[[11]]+pp[[12]]+pp[[13]]+pp[[14]]
 }
